@@ -30,12 +30,6 @@ func (ft *FutureTask) Wait(timeout time.Duration) (res *[]byte, err error) {
 	case res = <-ft.out:
 	case <-time.After(timeout):
 		err = fmt.Errorf("task(%+v) timeout", ft)
-		ft.Close()
 	}
 	return
-}
-
-// Close future task
-func (ft *FutureTask) Close() {
-	close(ft.out)
 }
