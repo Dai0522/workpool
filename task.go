@@ -12,14 +12,14 @@ type Task interface {
 
 // FutureTask out must be blocking chan (size=0)
 type FutureTask struct {
-	t   Task
+	T   Task
 	out chan *[]byte
 }
 
 // NewFutureTask .
 func NewFutureTask(t Task) *FutureTask {
 	return &FutureTask{
-		t:   t,
+		T:   t,
 		out: make(chan *[]byte, 1),
 	}
 }

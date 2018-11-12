@@ -160,7 +160,7 @@ func (p *Pool) getReadyWorker() (w *worker, err error) {
 				if !ok {
 					return
 				}
-				ft.out <- ft.t.Run()
+				ft.out <- ft.T.Run()
 				p.release(w)
 			}
 		}(w)
