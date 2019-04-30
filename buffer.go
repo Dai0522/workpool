@@ -2,6 +2,7 @@ package workpool
 
 import (
 	"errors"
+	"math"
 	"runtime"
 	"sync/atomic"
 )
@@ -10,13 +11,9 @@ import (
 type ringBuffer struct {
 	capacity       uint64
 	mask           uint64
-	padding1       [7]uint64
 	lastCommintIdx uint64
-	padding2       [7]uint64
 	nextFreeIdx    uint64
-	padding3       [7]uint64
 	readerIdx      uint64
-	padding4       [7]uint64
 	slots          []*worker
 }
 
@@ -26,8 +23,8 @@ func newRingBuffer(c uint64) (*ringBuffer, error) {
 		return nil, errors.New("capacity must be N power of 2")
 	}
 	return &ringBuffer{
-		lastCommintIdx: 0,
-		nextFreeIdx:    1,
+		lastCommintIdx: math.MaxUint64,
+		nextFreeIdx:    0,
 		readerIdx:      0,
 		capacity:       c,
 		mask:           c - 1,
@@ -41,17 +38,17 @@ func (r *ringBuffer) push(w *worker) error {
 	for {
 		head = r.nextFreeIdx
 		tail = r.readerIdx
-		if (head > tail+r.capacity-2) || (head < tail-1) {
+		if head-tail > r.mask {
 			return errors.New("buffer is full")
 		}
 
-		next = (head + 1) & r.mask
+		next = head + 1
 		if atomic.CompareAndSwapUint64(&r.nextFreeIdx, head, next) {
 			break
 		}
 		runtime.Gosched()
 	}
-	r.slots[head] = w
+	r.slots[head&r.mask] = w
 
 	for !atomic.CompareAndSwapUint64(&r.lastCommintIdx, head-1, head) {
 		runtime.Gosched()
@@ -61,19 +58,20 @@ func (r *ringBuffer) push(w *worker) error {
 
 // pop .
 func (r *ringBuffer) pop() *worker {
-	var head, next uint64
+	var head, tail, next uint64
 	for {
 		head = r.readerIdx
-		if head == r.lastCommintIdx {
-			return r.slots[head]
+		tail = r.nextFreeIdx
+		if head == tail {
+			return nil
 		}
-		next = (head + 1) & r.mask
+		next = head + 1
 		if atomic.CompareAndSwapUint64(&r.readerIdx, head, next) {
 			break
 		}
 		runtime.Gosched()
 	}
-	return r.slots[head]
+	return r.slots[head&r.mask]
 }
 
 // size .

@@ -14,6 +14,13 @@ const (
 	stateShutdown = 3
 )
 
+var _defaultConfig = &PoolConfig{
+	MaxWorkers:     1024,
+	MaxIdleWorkers: 512,
+	MinIdleWorkers: 256,
+	KeepAlive:      30 * time.Second,
+}
+
 // PoolConfig .
 type PoolConfig struct {
 	MaxWorkers     uint64
@@ -25,10 +32,8 @@ type PoolConfig struct {
 // Pool .
 type Pool struct {
 	conf       *PoolConfig
-	padding1   [8]uint64
 	ready      *ringBuffer
 	curWorkers uint64
-	padding2   [8]uint64
 	lock       sync.Mutex
 	state      uint8
 	stop       chan uint8
@@ -74,6 +79,10 @@ func NewWorkerPool(capacity uint64, conf *PoolConfig) (p *Pool, err error) {
 	if err != nil {
 		return
 	}
+	if conf == nil {
+		conf = _defaultConfig
+	}
+	conf.MaxWorkers = capacity
 	p = &Pool{
 		conf:       conf,
 		ready:      rb,
